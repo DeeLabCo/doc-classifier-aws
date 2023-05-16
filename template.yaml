@@ -1,0 +1,72 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  any-doc-classifier
+Transform:
+- AWS::Serverless-2016-10-31
+
+Resources:
+  manageFilesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/functions/file-manager/app.handler
+      Runtime: nodejs16.x
+      Architectures:
+      - x86_64
+      MemorySize: 128
+      Timeout: 100
+      Role: !ImportValue doc-analysis-role-for-lambda
+      Description: A simple endpoint to request signed urls to upload documents
+      Environment:
+        Variables:
+          RAW_FILES_BUCKET: !ImportValue doc-analysis-bucket
+          SNS_TOPIC_ARN: !ImportValue doc-analysis-sns-topic
+          EXECUTION_ROLE_FOR_TEXTRACT: !ImportValue doc-analysis-role-for-textract
+          DYNAMODB_DOCUMENTS_TABLE: !ImportValue doc-analysis-embeddings-table
+          TRAINING_FILES_BUCKET: !ImportValue docs-training-bucket
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /v1/file-manager/{proxy+}
+            Method: ANY
+  CheckTextractResultFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: functions/textract-checker/app.handler
+      Runtime: nodejs16.x
+      Role: !ImportValue 'doc-analysis-role-for-lambda'
+      Environment:
+        Variables:
+          DYNAMODB_DOCUMENTS_TABLE: !ImportValue doc-analysis-embeddings-table
+      Architectures:
+        - x86_64
+      Events:
+        SQSEvent:
+          Type: SQS
+          Properties:
+            Queue: !ImportValue 'doc-analysis-queue-arn'
+            BatchSize: 1
+            Enabled: true
+  ApplicationResourceGroup:
+    Type: AWS::ResourceGroups::Group
+    Properties:
+      Name:
+        Fn::Sub: ApplicationInsights-SAM-${AWS::StackName}
+      ResourceQuery:
+        Type: CLOUDFORMATION_STACK_1_0
+  ApplicationInsightsMonitoring:
+    Type: AWS::ApplicationInsights::Application
+    Properties:
+      ResourceGroupName:
+        Ref: ApplicationResourceGroup
+      AutoConfigurationEnabled: 'true'
+Outputs:
+  ManageFilesEndpoint:
+    Description: API Gateway endpoint URL for prod stage
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+Globals:
+  Function:
+    Tracing: Active
+  Api:
+    TracingEnabled: true

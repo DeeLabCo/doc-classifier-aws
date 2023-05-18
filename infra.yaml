@@ -1,0 +1,454 @@
+Description: >
+  cloudformation to generate some new resources in our app runner open ai
+Parameters:
+  DynamoDbRecordsTableName:
+    Type: String
+    Default: myDynamoDbTableToStoreEmbeddings
+    Description: Provide a table name to store file labels
+  BucketRecordsName:
+    Type: String
+    Default: my-files-bucket
+    Description: provide a name to store your files
+  DocsTrainingBucketName:
+    Type: String
+    Default: my-docs-training-bucket
+    Description: provide a name to store your csv files
+Resources:
+  DocAnalysisRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      RoleName: 'doc-analysis-compute-role'
+  DocAnalysisComprehendDataRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: comprehend.amazonaws.com
+        Version: "2012-10-17"
+      Policies:
+        - PolicyName: root
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:List*
+                  - s3:*Object
+                  - s3:PutObject
+                  - s3:GetBucketLocation
+                  - s3:GetObjectVersion
+                Resource:
+                  - "*"
+      RoleName: 'doc-analysis-comprehend-data-role'
+  DynamoDbRecordsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref DynamoDbRecordsTableName
+      AttributeDefinitions:
+        - AttributeName: s3_object_key
+          AttributeType: S
+        - AttributeName: sync
+          AttributeType: N
+        - AttributeName: created_at
+          AttributeType: N
+      KeySchema:
+        - AttributeName: s3_object_key
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: sync-status-index
+          KeySchema:
+            - AttributeName: sync
+              KeyType: HASH
+            - AttributeName: created_at
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      BillingMode: PAY_PER_REQUEST
+      SSESpecification:
+        SSEEnabled: true
+  DocAnalysisRolePolicyDynamoDB:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - "dynamodb:BatchGetItem"
+              - "dynamodb:GetItem"
+              - "dynamodb:Query"
+              - "dynamodb:Scan"
+              - "dynamodb:BatchWriteItem"
+              - "dynamodb:PutItem"
+              - "dynamodb:UpdateItem"
+            Effect: Allow
+            Resource:
+              - !GetAtt DynamoDbRecordsTable.Arn
+              - !Join
+                - "/"
+                - - !GetAtt DynamoDbRecordsTable.Arn
+                  - "index"
+                  - "sync-status-index"
+        Version: "2012-10-17"
+      PolicyName: 'doc-analysis-dynamodb-policy'
+      Roles:
+        - Ref: DocAnalysisRole
+  DocAnalysisRolePolicyComprehend:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - "comprehend:StartDocumentClassificationJob"
+              - "iam:PassRole"
+            Effect: Allow
+            Resource:
+              - "*"
+        Version: "2012-10-17"
+      PolicyName: 'doc-analysis-comprehend-policy'
+      Roles:
+        - Ref: DocAnalysisRole
+  DocAnalysisDeadLetterQueue:
+    Type: 'AWS::SQS::Queue'
+    Properties:
+      VisibilityTimeout: 300
+  DocAnalysisQueue:
+    Type: 'AWS::SQS::Queue'
+    DependsOn: DocAnalysisDeadLetterQueue
+    Properties:
+      VisibilityTimeout: 300
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt DocAnalysisDeadLetterQueue.Arn
+        maxReceiveCount: 3
+  DocClassificationQueue:
+    Type: 'AWS::SQS::Queue'
+    Properties:
+      VisibilityTimeout: 300
+  DocAnalysisDeadLetterQueuePolicy:
+    Type: 'AWS::SQS::QueuePolicy'
+    DependsOn:
+      - DocAnalysisDeadLetterQueue
+    Properties:
+      Queues:
+        - !Ref DocAnalysisDeadLetterQueue
+      PolicyDocument:
+        Id: AllowIncomingAccess
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS:
+                - !Ref AWS::AccountId
+            Action:
+              - sqs:SendMessage
+              - sqs:ReceiveMessage
+            Resource:
+              - !GetAtt DocAnalysisDeadLetterQueue.Arn
+  # Some context: SNS is authorized to access the queue
+  DocAnalysisQueuePolicy:
+    Type: 'AWS::SQS::QueuePolicy'
+    DependsOn:
+      - DocAnalysisQueue
+    Properties:
+      Queues:
+        - !Ref DocAnalysisQueue
+      PolicyDocument:
+        Id: AllowIncomingAccess
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - sns.amazonaws.com
+            Action:
+              - sqs:SendMessage
+              - sqs:ReceiveMessage
+            Resource:
+              - !GetAtt DocAnalysisQueue.Arn
+  DocClassificationQueuePolicy:
+    Type: 'AWS::SQS::QueuePolicy'
+    DependsOn:
+      - DocClassificationQueue
+    Properties:
+      Queues:
+        - !Ref DocClassificationQueue
+      PolicyDocument:
+        Id: AllowIncomingAccess
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - s3.amazonaws.com
+            Action:
+              - sqs:SendMessage
+              - sqs:ReceiveMessage
+            Resource:
+              - !GetAtt DocClassificationQueue.Arn
+  # IMPORTANT: the topic must start with AmazonTextract to ensure the integration works
+  AmazonTextractDocAnalysisSNSTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      Subscription:
+        - Endpoint: !GetAtt DocAnalysisQueue.Arn
+          Protocol: sqs
+      TopicName: AmazonTextractDocAnalysisSNSTopic
+  DocAnalysisSNSTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      PolicyDocument:
+        Id: sns-topic-policy
+        Version: '2012-10-17'
+        Statement:
+        - Sid: publish-to-sns
+          Effect: Allow
+          Principal:
+            Service: "textract.amazonaws.com"
+          Action: sns:Publish
+          Resource:
+            - !Ref AmazonTextractDocAnalysisSNSTopic
+      Topics:
+      - !Ref AmazonTextractDocAnalysisSNSTopic
+  DocAnalysisBucket:
+    Type: 'AWS::S3::Bucket'
+    DependsOn:
+      - DocClassificationQueue
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Ref BucketRecordsName
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: false
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - '*'
+            AllowedMethods:
+              - PUT
+            AllowedOrigins:
+              - '*'
+            Id: myCORSRuleId1
+            MaxAge: 3600
+      NotificationConfiguration:
+        QueueConfigurations:
+          - Event: s3:ObjectCreated:*
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: classify
+            Queue: !GetAtt DocClassificationQueue.Arn
+  DocsTrainingBucket:
+    Type: 'AWS::S3::Bucket'
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Ref DocsTrainingBucketName
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: false
+  DocAnalysisBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    DependsOn:
+      - DocAnalysisBucket
+    Properties:
+      Bucket: !Ref DocAnalysisBucket
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Action:
+              - s3:PutObject
+            Effect: Allow
+            Resource:
+              - !Join
+                - ""
+                - - "arn:aws:s3:::"
+                  - !Ref DocAnalysisBucket
+              - !Join
+                - ""
+                - - "arn:aws:s3:::"
+                  - !Ref DocAnalysisBucket
+                  - /*
+            Principal: "*"
+          - Action:
+              - s3:GetObject
+              - s3:List*
+              - s3:*Object
+              - s3:PutObject
+              - s3:GetBucketLocation
+              - s3:GetObjectVersion
+            Effect: Allow
+            Resource:
+              - !Join
+                - ""
+                - - "arn:aws:s3:::"
+                  - !Ref DocAnalysisBucket
+              - !Join
+                - ""
+                - - "arn:aws:s3:::"
+                  - !Ref DocAnalysisBucket
+                  - /*
+            Principal:
+              AWS:
+                - !Ref AWS::AccountId
+  DocsTrainingRolePolicyS3:
+    Type: AWS::IAM::Policy
+    DependsOn: DocsTrainingBucket
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject
+              - s3:List*
+              - s3:*Object
+              - s3:PutObject
+              - s3:GetBucketLocation
+              - s3:GetObjectVersion
+            Effect: Allow
+            Resource:
+              - !Join
+                - ""
+                - - "arn:aws:s3:::"
+                  - !Ref DocsTrainingBucket
+              - !Join
+                - ""
+                - - "arn:aws:s3:::"
+                  - !Ref DocsTrainingBucket
+                  - /*
+        Version: "2012-10-17"
+      PolicyName: 'doc-training-s3-policy'
+      Roles:
+        - Ref: DocAnalysisRole
+  DocAnalysisRolePolicyQueue:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - sqs:DeleteMessage
+              - sqs:GetQueueAttributes
+              - sqs:ReceiveMessage
+            Effect: Allow
+            Resource:
+              - !GetAtt DocAnalysisQueue.Arn
+              - !GetAtt DocClassificationQueue.Arn
+        Version: "2012-10-17"
+      PolicyName: 'doc-analysis-sqs-policy'
+      Roles:
+        - Ref: DocAnalysisRole
+  DocAnalysisLogsPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - 'logs:CreateLogGroup'
+              - 'logs:CreateLogStream'
+              - 'logs:PutLogEvents'
+            Effect: Allow
+            Resource: '*'
+        Version: "2012-10-17"
+      PolicyName: 'doc-analysis-logs-policy'
+      Roles:
+        - Ref: DocAnalysisRole
+  DocAnalysisTextractPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - "textract:StartDocumentTextDetection"
+              - "textract:StartDocumentAnalysis"
+              - "textract:GetDocumentTextDetection"
+              - "textract:GetDocumentAnalysis"
+              - "textract:DetectDocumentText"
+              - "textract:AnalyzeDocument"
+            Effect: Allow
+            Resource: '*'
+        Version: "2012-10-17"
+      PolicyName: 'doc-analysis-textract-policy'
+      Roles:
+        - Ref: DocAnalysisRole
+  DocAnalysisTextractRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - textract.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+            Condition:
+              StringEquals:
+                "aws:SourceAccount": !Ref AWS::AccountId
+              ArnLike:
+                "aws:SourceArn": !Join
+                  - ''
+                  - - 'arn:aws:textract:*:'
+                    - !Ref AWS::AccountId
+                    - ":*"
+      Description: textract will assume this role to execute operations
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonTextractServiceRole
+      RoleName: doc-analysis-textract-role
+Outputs:
+  DynamoDbRecordsTable:
+    Description: store the embeddings
+    Value: !Ref DynamoDbRecordsTable
+    Export:
+      Name: doc-analysis-embeddings-table
+  AmazonTextractDocAnalysisSNSTopic:
+    Description: publish the doc analysis
+    Value: !Ref AmazonTextractDocAnalysisSNSTopic
+    Export:
+      Name: doc-analysis-sns-topic
+  DocAnalysisQueueArn:
+    Description: queue to manage the results of your doc analysis
+    Value: !GetAtt DocAnalysisQueue.Arn
+    Export:
+      Name: doc-analysis-queue-arn
+  DocClassificationQueueArn:
+    Description: queue to catch documents to be analyzed
+    Value: !GetAtt DocClassificationQueue.Arn
+    Export:
+      Name: doc-classification-queue-arn
+  DocAnalysisQueueUrl:
+    Description: queue to manage the results of your doc analysis
+    Value: !Ref DocAnalysisQueue
+    Export:
+      Name: doc-analysis-queue-url
+  DocAnalysisRoleLambda:
+    Description: role to be assumed by lambda
+    Value: !GetAtt DocAnalysisRole.Arn
+    Export:
+      Name: doc-analysis-role-for-lambda
+  DocAnalysisRoleTextract:
+    Description: role to be assumed by textract
+    Value: !GetAtt DocAnalysisTextractRole.Arn
+    Export:
+      Name: doc-analysis-role-for-textract
+  DocAnalysisBucket:
+    Description: bucket to store the files
+    Value: !Ref DocAnalysisBucket
+    Export:
+      Name: doc-analysis-bucket
+  DocsTrainingBucket:
+    Description: bucket to store the csv files
+    Value: !Ref  DocsTrainingBucket
+    Export:
+      Name: docs-training-bucket
+  DocAnalysisComprehendDataRole:
+    Description: role for comprehend to access all buckets
+    Value: !GetAtt DocAnalysisComprehendDataRole.Arn
+    Export:
+      Name: doc-analysis-comprehend-data-role

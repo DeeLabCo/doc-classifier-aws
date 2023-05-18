@@ -8,7 +8,8 @@ Resources:
   manageFilesFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: src/functions/file-manager/app.handler
+      CodeUri: src/
+      Handler: functions/file-manager/app.handler
       Runtime: nodejs16.x
       Architectures:
       - x86_64
@@ -46,6 +47,26 @@ Resources:
           Type: SQS
           Properties:
             Queue: !ImportValue 'doc-analysis-queue-arn'
+            BatchSize: 1
+            Enabled: true
+  ClassifyDocumentFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: functions/classify-document/app.handler
+      Runtime: nodejs16.x
+      Role: !ImportValue 'doc-analysis-role-for-lambda'
+      Environment:
+        Variables:
+          COMPREHEND_MODEL_ARN: 'your_comprehend_model_arn'
+          DATA_ACCESS_ROLE_ARN: !ImportValue 'doc-analysis-comprehend-data-role'
+      Architectures:
+        - x86_64
+      Events:
+        SQSEvent:
+          Type: SQS
+          Properties:
+            Queue: !ImportValue 'doc-classification-queue-arn'
             BatchSize: 1
             Enabled: true
   ApplicationResourceGroup:

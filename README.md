@@ -6,9 +6,22 @@ The project exposes an API to manage documents information and be able to classi
 - `src` - Code for the application's Lambda functions.
 - `template.yaml` - A template that defines the application's AWS resources and reference the stack deployed from the main project. 
 - 
-To get started, see the following:
+To get started, deploy the cloudformation template:
+```
+  infra.yml
+```
 
-* [MainProject](https://github.com/estebance/open_ai_doc_inference)
+The template includes: 
+
+* **DocAnalysisRole**: Role for your lambda functions 
+* **DocAnalysisComprehendDataRole**: Role assumed by comprehend to access the buckets (input and output buckets) defined in your model
+* **DynamoDbRecordsTable**: Table to store the information extracted from your documents
+* **DocAnalysisQueue**: you can start a document text detection task (async), this queue receives the notification when this tasks finish and trigger a lambda function
+* **DocAnalysisDeadLetterQueuePolicy**: When a notification from the DocAnalysisQueue cannot be processed the message goes to this queue 
+* **AmazonTextractDocAnalysisSNSTopic**: When AWS textract finishes the detection task the notification is delivered to the DocAnalysisQueue through this topic
+* **DocAnalysisBucket**: All documents you upload go to this bucket (the raw data)
+* **DocsTrainingBucket**: Before you can train a classifier with Comprehend you must generate CSV files with the raw data, these files are stored here. 
+
 
 ## Deploy the sample application
 

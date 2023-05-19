@@ -49,6 +49,22 @@ Resources:
             Queue: !ImportValue 'doc-analysis-queue-arn'
             BatchSize: 1
             Enabled: true
+  ExtractDataFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: functions/extract-data/app.handler
+      Runtime: nodejs16.x
+      Role: !ImportValue 'doc-analysis-role-for-lambda'
+      Architectures:
+        - x86_64
+      Events:
+        SQSEvent:
+          Type: SQS
+          Properties:
+            Queue: !ImportValue 'doc-extraction-queue-arn'
+            BatchSize: 1
+            Enabled: true
   ClassifyDocumentFunction:
     Type: AWS::Serverless::Function
     Properties:

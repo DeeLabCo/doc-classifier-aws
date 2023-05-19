@@ -13,6 +13,10 @@ Parameters:
     Type: String
     Default: my-docs-training-bucket
     Description: provide a name to store your csv files
+  BucketClassificationName:
+    Type: String
+    Default: my-docs-classification-bucket
+    Description: provide a name to store your documents to be classified
 Resources:
   DocAnalysisRole:
     Type: AWS::IAM::Role
@@ -133,6 +137,10 @@ Resources:
     Type: 'AWS::SQS::Queue'
     Properties:
       VisibilityTimeout: 300
+  DocExtractionQueue:
+    Type: 'AWS::SQS::Queue'
+    Properties:
+      VisibilityTimeout: 300
   DocAnalysisDeadLetterQueuePolicy:
     Type: 'AWS::SQS::QueuePolicy'
     DependsOn:
@@ -172,6 +180,25 @@ Resources:
               - sqs:ReceiveMessage
             Resource:
               - !GetAtt DocAnalysisQueue.Arn
+  DocExtractionQueuePolicy:
+    Type: 'AWS::SQS::QueuePolicy'
+    DependsOn:
+      - DocExtractionQueue
+    Properties:
+      Queues:
+        - !Ref DocExtractionQueue
+      PolicyDocument:
+        Id: AllowIncomingAccess
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - s3.amazonaws.com
+            Action:
+              - sqs:SendMessage
+              - sqs:ReceiveMessage
+            Resource:
+              - !GetAtt DocExtractionQueue.Arn
   DocClassificationQueuePolicy:
     Type: 'AWS::SQS::QueuePolicy'
     DependsOn:
@@ -215,14 +242,14 @@ Resources:
             - !Ref AmazonTextractDocAnalysisSNSTopic
       Topics:
       - !Ref AmazonTextractDocAnalysisSNSTopic
-  DocAnalysisBucket:
+  DocClassificationBucket:
     Type: 'AWS::S3::Bucket'
     DependsOn:
       - DocClassificationQueue
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:
-      BucketName: !Ref BucketRecordsName
+      BucketName: !Ref BucketClassificationName
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: false
@@ -245,6 +272,31 @@ Resources:
                   - Name: prefix
                     Value: classify
             Queue: !GetAtt DocClassificationQueue.Arn
+  DocAnalysisBucket:
+    Type: 'AWS::S3::Bucket'
+    DependsOn:
+      - DocExtractionQueue
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Ref BucketRecordsName
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: false
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - '*'
+            AllowedMethods:
+              - PUT
+            AllowedOrigins:
+              - '*'
+            Id: myCORSRuleId1
+            MaxAge: 3600
+      NotificationConfiguration:
+        QueueConfigurations:
+          - Event: s3:ObjectCreated:*
+            Queue: !GetAtt DocExtractionQueue.Arn
   DocsTrainingBucket:
     Type: 'AWS::S3::Bucket'
     DeletionPolicy: Retain
@@ -254,6 +306,50 @@ Resources:
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: false
+  DocClassificationBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    DependsOn:
+      - DocClassificationBucket
+    Properties:
+      Bucket: !Ref DocClassificationBucket
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Action:
+              - s3:PutObject
+            Effect: Allow
+            Resource:
+              - !Join
+                - ""
+                - - "arn:aws:s3:::"
+                  - !Ref DocClassificationBucket
+              - !Join
+                - ""
+                - - "arn:aws:s3:::"
+                  - !Ref DocClassificationBucket
+                  - /*
+            Principal: "*"
+          - Action:
+              - s3:GetObject
+              - s3:List*
+              - s3:*Object
+              - s3:PutObject
+              - s3:GetBucketLocation
+              - s3:GetObjectVersion
+            Effect: Allow
+            Resource:
+              - !Join
+                - ""
+                - - "arn:aws:s3:::"
+                  - !Ref DocClassificationBucket
+              - !Join
+                - ""
+                - - "arn:aws:s3:::"
+                  - !Ref DocClassificationBucket
+                  - /*
+            Principal:
+              AWS:
+                - !Ref AWS::AccountId
   DocAnalysisBucketPolicy:
     Type: AWS::S3::BucketPolicy
     DependsOn:
@@ -339,6 +435,7 @@ Resources:
             Resource:
               - !GetAtt DocAnalysisQueue.Arn
               - !GetAtt DocClassificationQueue.Arn
+              - !GetAtt DocExtractionQueue.Arn
         Version: "2012-10-17"
       PolicyName: 'doc-analysis-sqs-policy'
       Roles:
@@ -422,6 +519,11 @@ Outputs:
     Value: !GetAtt DocClassificationQueue.Arn
     Export:
       Name: doc-classification-queue-arn
+  DocExtractionQueueArn:
+    Description: queue to catch documents to extract data
+    Value: !GetAtt DocExtractionQueue.Arn
+    Export:
+      Name: doc-extraction-queue-arn
   DocAnalysisQueueUrl:
     Description: queue to manage the results of your doc analysis
     Value: !Ref DocAnalysisQueue
@@ -442,6 +544,11 @@ Outputs:
     Value: !Ref DocAnalysisBucket
     Export:
       Name: doc-analysis-bucket
+  DocClassificationBucket:
+    Description: bucket to store the files to be classified
+    Value: !Ref DocClassificationBucket
+    Export:
+      Name: doc-classification-bucket
   DocsTrainingBucket:
     Description: bucket to store the csv files
     Value: !Ref  DocsTrainingBucket

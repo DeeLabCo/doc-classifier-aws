@@ -53,6 +53,7 @@ The API Gateway endpoint API will be displayed in the outputs when the deploymen
   * 
 * **textract-checker**: due you can upload files with a couple of pages, we have created a SQS trigger to process asynchronously the files text extraction 
 
+* **classify-document**: S3 trigger that takes the file and classify it with AWS comprehend (batch process). A prefix for the file must be defined (classify_<file_name>.extension)
 
 ## THE API 
 
@@ -61,8 +62,8 @@ The API Gateway endpoint API will be displayed in the outputs when the deploymen
     * {"data": { "file_name": "<file_name>" }}
 * After you request the signed url, you can upload the file with the following request 
 * PUT: <signed_url> 
-  * File with the name of the signed url 
+  * File with the name of the signed url
 
 # TODO 
 
-* **S3 Trigger **: When you upload a file trigger the entire process 
+* **S3 Trigger **: When you upload a file, activate a S3 trigger to extract information and persist the result in DynamoDB

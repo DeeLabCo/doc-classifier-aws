@@ -1,4 +1,4 @@
-# any-doc-classifier
+# any-doc-classifier  - DeeLab S***
 
 This project contains source code and supporting files for a serverless application that you can deploy with the AWS Serverless Application Model (AWS SAM) 
 The project exposes an API to manage documents information and be able to classify them with comprehend. It includes the following files and folders:
@@ -40,7 +40,7 @@ sam build --use-container
 cd .aws-sam/build/
 # for the first time 
 sam deploy --guided 
-# after 
+# afterwards  
 sam deploy --config-file ../../samconfig.toml
 ```
 
@@ -54,4 +54,15 @@ The API Gateway endpoint API will be displayed in the outputs when the deploymen
 * **textract-checker**: due you can upload files with a couple of pages, we have created a SQS trigger to process asynchronously the files text extraction 
 
 
-TODO 
+## THE API 
+
+* POST:  /file-manager/put-document 
+  * request a signed url to upload the document, the body is
+    * {"data": { "file_name": "<file_name>" }}
+* After you request the signed url, you can upload the file with the following request 
+* PUT: <signed_url> 
+  * File with the same name of the signed url 
+
+# TODO 
+
+* **S3 Trigger **: When you upload a file trigger the entire process 

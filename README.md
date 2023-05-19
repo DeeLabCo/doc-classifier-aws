@@ -61,7 +61,7 @@ The API Gateway endpoint API will be displayed in the outputs when the deploymen
     * {"data": { "file_name": "<file_name>" }}
 * After you request the signed url, you can upload the file with the following request 
 * PUT: <signed_url> 
-  * File with the same name of the signed url 
+  * File with the name of the signed url 
 
 # TODO 
 

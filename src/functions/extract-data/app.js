@@ -1,3 +1,4 @@
+const { requestDocumentTextDetection } = require('../../utils/textract_manager');
 const extractDataFromDocument = async (event, context) => {
   try {
     console.log('s3 trigger enabled');
@@ -11,6 +12,8 @@ const extractDataFromDocument = async (event, context) => {
     if (eventName === 'ObjectCreated:Put') {
       const key = eventRecord.s3.object.key;
       const bucket = eventRecord.s3.bucket.name;
+      console.info(`File ${key} uploaded to bucket ${bucket}`);
+      await requestDocumentTextDetection(key)
     }
   } catch (error) {
     console.error(error);

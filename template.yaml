@@ -56,6 +56,11 @@ Resources:
       Handler: functions/extract-data/app.handler
       Runtime: nodejs16.x
       Role: !ImportValue 'doc-analysis-role-for-lambda'
+      Environment:
+        Variables:
+          RAW_FILES_BUCKET: !ImportValue doc-analysis-bucket
+          SNS_TOPIC_ARN: !ImportValue doc-analysis-sns-topic
+          EXECUTION_ROLE_FOR_TEXTRACT: !ImportValue doc-analysis-role-for-textract
       Architectures:
         - x86_64
       Events:

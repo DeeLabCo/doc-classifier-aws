@@ -11,7 +11,7 @@ const {
 } = require('../../utils/dynamodb_manager');
 const { genCsvFromRecords } = require('./services/csv_manager');
 // route handler
-api.post("/put-document", async (request, response, next) => {
+api.post("/training/put-document", async (request, response, next) => {
     try {
       const requestBody = request.body;
       const requestData = requestBody.data;
@@ -22,6 +22,20 @@ api.post("/put-document", async (request, response, next) => {
       console.log(error);
       response.status(StatusCodes.INTERNAL_SERVER_ERROR).send({ message: "echo endpoint" });
     }
+});
+
+api.post("/classification/put-document", async (request, response, next) => {
+  try {
+    const requestBody = request.body;
+    const requestData = requestBody.data;
+    const fileName = requestData.file_name;
+    const isClassification = true;
+    const signedUlr = await retrieveBucketSignedUrl(fileName, isClassification);
+    response.status(StatusCodes.OK).send({ signed_url: signedUlr });
+  } catch (error) {
+    console.log(error);
+    response.status(StatusCodes.INTERNAL_SERVER_ERROR).send({ message: "echo endpoint" });
+  }
 });
 
 api.post('/start-document-text-detection', async (request, response, next) =>  {

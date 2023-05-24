@@ -44,26 +44,18 @@ sam deploy --guided
 sam deploy --config-file ../../samconfig.toml
 ```
 
-The first command will build the source of your application. The second command will package and deploy your application to AWS
+The first command builds the source of your application. The second command will package and deploy your application to AWS
 The API Gateway endpoint API will be displayed in the outputs when the deployment is complete.
 
 ## Project Structure 
 
 * **file-manager**: this lambda function exposes an Express API with the following routes:
-  * 
-* **textract-checker**: due you can upload files with a couple of pages, we have created a SQS trigger to process asynchronously the files text extraction 
-
-* **classify-document**: S3 trigger that takes the file and classify it with AWS comprehend (batch process). A prefix for the file must be defined (classify_<file_name>.extension)
-
-## THE API 
-
-* POST:  /file-manager/put-document 
-  * request a signed url to upload the document, the body is
-    * {"data": { "file_name": "<file_name>" }}
-* After you request the signed url, you can upload the file with the following request 
-* PUT: <signed_url> 
-  * File with the name of the signed url
+* **extract-data**: S3 trigger to take the file and invoke the Textract API. 
+* **textract-checker**: due you can upload files with a couple of pages, we have created a SQS trigger to process asynchronously the files text extraction, the data is then persisted on DynamoDb
+* **classify-document** :S3 trigger that takes the file and classify it with AWS comprehend (batch process). A prefix for the file must be defined (classify_<file_name>.extension)
 
 # TODO 
 
-* **S3 Trigger **: When you upload a file, activate a S3 trigger to extract information and persist the result in DynamoDB
+* **API**: attach postman collection to interact with the API
+* **S3-BUCKET-CLASSIFICATION**: Bucket from infra to store classification results 
+* **S3-TRIGGER-CLASSIFICATION**:  Trigger to extract classification results

@@ -17,6 +17,10 @@ Parameters:
     Type: String
     Default: my-docs-classification-bucket
     Description: provide a name to store your documents to be classified
+  BucketClassificationOutputsName:
+    Type: String
+    Default: my-docs-classification-outputs-bucket
+    Description: provide a name to the bucket receiving outputs from comprehend
 Resources:
   DocAnalysisRole:
     Type: AWS::IAM::Role
@@ -242,6 +246,15 @@ Resources:
             - !Ref AmazonTextractDocAnalysisSNSTopic
       Topics:
       - !Ref AmazonTextractDocAnalysisSNSTopic
+  DocClassificationOutputsBucket:
+    Type: 'AWS::S3::Bucket'
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Ref BucketClassificationOutputsName
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: false
   DocClassificationBucket:
     Type: 'AWS::S3::Bucket'
     DependsOn:
@@ -572,6 +585,11 @@ Outputs:
     Value: !Ref DocAnalysisBucket
     Export:
       Name: doc-analysis-bucket
+  DocClassificationOutputsBucket:
+    Description: bucket to store the files created by comprehend as output
+    Value: !Ref DocClassificationOutputsBucket
+    Export:
+      Name: doc-classification-outputs-bucket
   DocClassificationBucket:
     Description: bucket to store the files to be classified
     Value: !Ref DocClassificationBucket

@@ -24,6 +24,7 @@ Resources:
           EXECUTION_ROLE_FOR_TEXTRACT: !ImportValue doc-analysis-role-for-textract
           DYNAMODB_DOCUMENTS_TABLE: !ImportValue doc-analysis-embeddings-table
           TRAINING_FILES_BUCKET: !ImportValue docs-training-bucket
+          CLASSIFICATION_FILES_BUCKET: !ImportValue doc-classification-bucket
       Events:
         Api:
           Type: Api

@@ -3,9 +3,13 @@ const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
 const fs = require("fs");
 const client = new S3Client({region: "us-east-1"});
 
-const retrieveBucketSignedUrl =  async (fileName) => {
+const RAW_FILES_BUCKET = process.env.RAW_FILES_BUCKET;
+const CLASSIFICATION_FILES_BUCKET = process.env.CLASSIFICATION_FILES_BUCKET;
+
+const retrieveBucketSignedUrl =  async (fileName, isClassification = false) => {
+  const targetBucket = isClassification ? CLASSIFICATION_FILES_BUCKET : RAW_FILES_BUCKET;
   const putObjectParams = {
-    Bucket: process.env.RAW_FILES_BUCKET,
+    Bucket: targetBucket,
     Key: fileName
   };
   console.info(putObjectParams);

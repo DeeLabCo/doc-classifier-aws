@@ -20,7 +20,7 @@ const requestDocumentTextDetection = async (fileKey) => {
             RoleArn: process.env.EXECUTION_ROLE_FOR_TEXTRACT
         }
     });
-    console.info(command);
+    console.info(JSON.stringify(command));
     const startDetectionResponse = await client.send(command);
     console.info("startAnalysisResponse", startDetectionResponse);
     return startDetectionResponse;

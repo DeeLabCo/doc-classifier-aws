@@ -394,6 +394,34 @@ Resources:
             Principal:
               AWS:
                 - !Ref AWS::AccountId
+  DocsAnalysisRolePolicyS3:
+    Type: AWS::IAM::Policy
+    DependsOn: DocAnalysisBucket
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject
+              - s3:List*
+              - s3:*Object
+              - s3:PutObject
+              - s3:GetBucketLocation
+              - s3:GetObjectVersion
+            Effect: Allow
+            Resource:
+              - !Join
+                - ""
+                - - "arn:aws:s3:::"
+                  - !Ref DocAnalysisBucket
+              - !Join
+                - ""
+                - - "arn:aws:s3:::"
+                  - !Ref DocAnalysisBucket
+                  - /*
+        Version: "2012-10-17"
+      PolicyName: 'doc-training-s3-policy'
+      Roles:
+        - Ref: DocAnalysisRole
   DocsTrainingRolePolicyS3:
     Type: AWS::IAM::Policy
     DependsOn: DocsTrainingBucket

@@ -64,11 +64,13 @@ const fetchDocumentTextDetection = async (jobId) => {
 };
 
 const extractTextFromBlocks = (textractTextDetectionContent) => {
-    const textBody = textractTextDetectionContent.Blocks.map((wordData) => {
-       return wordData.Text
+    let textBody = textractTextDetectionContent.Blocks.map((wordData) => {
+      if (wordData.Text) return wordData.Text;
+      return null;
     });
-    console.info(textBody);
-    return textBody.join(',');
+    textBody = textBody.filter((text) => {return text !== null;});
+    // join just with space no additional characters
+    return textBody.join(' ');
 }
 
 module.exports = {

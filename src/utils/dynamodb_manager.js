@@ -69,6 +69,9 @@ let putAnalysisRecord = async (s3ObjectKey, createdAt, jobId, s3ObjectText) => {
       },
       "job_id": {
         "S": jobId
+      },
+      "text": {
+        "S": s3ObjectText
       }
     },
     "ReturnConsumedCapacity": "TOTAL",

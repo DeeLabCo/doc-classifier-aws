@@ -13,7 +13,8 @@ let checkExtractionResult = async (event, context) => {
         const s3ObjectName = textractMessage.DocumentLocation.S3ObjectName;
         const documentContent  = await fetchDocumentTextDetection(jobId)
         const documentText = extractTextFromBlocks(documentContent);
-        await updateAnalysisRecord(s3ObjectName, documentText)
+        const createdAt = new Date().valueOf();
+        await putAnalysisRecord(s3ObjectName, createdAt, jobId, documentText)
     } catch (error) {
         console.error(error);
     }

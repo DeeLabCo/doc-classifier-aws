@@ -1,4 +1,6 @@
 const { startDocumentClassification } = require('../../utils/comprehend_manager');
+
+const OUTPUT_COMPREHEND_BUCKET = process.env.OUTPUT_COMPREHEND_BUCKET;
 let checkFileAndClassify = async (event, context) => {
   try {
     console.log('s3 trigger enabled');
@@ -13,7 +15,7 @@ let checkFileAndClassify = async (event, context) => {
       const key = eventRecord.s3.object.key;
       const bucket = eventRecord.s3.bucket.name;
       const inputS3Uri = `s3://${bucket}/${key}`;
-      const outputS3Uri = `s3://document-analysis-tbbc-test/`;
+      const outputS3Uri = `s3://${OUTPUT_COMPREHEND_BUCKET}/`;
       console.info(inputS3Uri);
       console.info(outputS3Uri);
       await startDocumentClassification(inputS3Uri, outputS3Uri);

@@ -279,11 +279,6 @@ Resources:
       NotificationConfiguration:
         QueueConfigurations:
           - Event: s3:ObjectCreated:*
-            Filter:
-              S3Key:
-                Rules:
-                  - Name: prefix
-                    Value: classify
             Queue: !GetAtt DocClassificationQueue.Arn
   DocAnalysisBucket:
     Type: 'AWS::S3::Bucket'

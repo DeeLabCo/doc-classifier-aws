@@ -8,7 +8,7 @@ Resources:
   manageFilesFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/
+      CodeUri: src
       Handler: functions/file-manager/app.handler
       Runtime: nodejs16.x
       Architectures:
@@ -34,7 +34,7 @@ Resources:
   CheckTextractResultFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/
+      CodeUri: src
       Handler: functions/textract-checker/app.handler
       Runtime: nodejs16.x
       Role: !ImportValue 'doc-analysis-role-for-lambda'
@@ -53,7 +53,7 @@ Resources:
   ExtractDataFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/
+      CodeUri: src
       Handler: functions/extract-data/app.handler
       Runtime: nodejs16.x
       Role: !ImportValue 'doc-analysis-role-for-lambda'
@@ -74,7 +74,7 @@ Resources:
   ClassifyDocumentFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/
+      CodeUri: src
       Handler: functions/classify-document/app.handler
       Runtime: nodejs16.x
       Role: !ImportValue 'doc-analysis-role-for-lambda'
@@ -82,6 +82,7 @@ Resources:
         Variables:
           COMPREHEND_MODEL_ARN: 'your_comprehend_model_arn'
           DATA_ACCESS_ROLE_ARN: !ImportValue 'doc-analysis-comprehend-data-role'
+          OUTPUT_COMPREHEND_BUCKET: !ImportValue 'doc-classification-outputs-bucket'
       Architectures:
         - x86_64
       Events:

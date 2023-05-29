@@ -92,6 +92,25 @@ Resources:
             Queue: !ImportValue 'doc-classification-queue-arn'
             BatchSize: 1
             Enabled: true
+  ClassifyExtractorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src
+      Handler: functions/classify-extractor/app.handler
+      Runtime: nodejs16.x
+      Role: !ImportValue 'doc-analysis-role-for-lambda'
+      Environment:
+        Variables:
+          OUTPUT_COMPREHEND_BUCKET: !ImportValue 'doc-classification-outputs-bucket'
+      Architectures:
+        - x86_64
+      Events:
+        SQSEvent:
+          Type: SQS
+          Properties:
+            Queue: !ImportValue 'doc-classification-output-queue-arn'
+            BatchSize: 1
+            Enabled: true
   ApplicationResourceGroup:
     Type: AWS::ResourceGroups::Group
     Properties:

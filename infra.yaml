@@ -137,6 +137,10 @@ Resources:
       RedrivePolicy:
         deadLetterTargetArn: !GetAtt DocAnalysisDeadLetterQueue.Arn
         maxReceiveCount: 3
+  DocClassificationOutputQueue:
+    Type: 'AWS::SQS::Queue'
+    Properties:
+      VisibilityTimeout: 300
   DocClassificationQueue:
     Type: 'AWS::SQS::Queue'
     Properties:
@@ -203,6 +207,25 @@ Resources:
               - sqs:ReceiveMessage
             Resource:
               - !GetAtt DocExtractionQueue.Arn
+  DocClassificationOutputQueuePolicy:
+    Type: 'AWS::SQS::QueuePolicy'
+    DependsOn:
+      - DocClassificationOutputQueue
+    Properties:
+      Queues:
+        - !Ref DocClassificationOutputQueue
+      PolicyDocument:
+        Id: AllowIncomingAccess
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - s3.amazonaws.com
+            Action:
+              - sqs:SendMessage
+              - sqs:ReceiveMessage
+            Resource:
+              - !GetAtt DocClassificationOutputQueue.Arn
   DocClassificationQueuePolicy:
     Type: 'AWS::SQS::QueuePolicy'
     DependsOn:
@@ -254,7 +277,11 @@ Resources:
       BucketName: !Ref BucketClassificationOutputsName
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
-        BlockPublicPolicy: false
+        BlockPublicPolicy: true
+      NotificationConfiguration:
+        QueueConfigurations:
+          - Event: s3:ObjectCreated:*
+            Queue: !GetAtt DocClassificationOutputQueue.Arn
   DocClassificationBucket:
     Type: 'AWS::S3::Bucket'
     DependsOn:
@@ -560,6 +587,11 @@ Outputs:
     Value: !GetAtt DocExtractionQueue.Arn
     Export:
       Name: doc-extraction-queue-arn
+  DocClassificationOutputQueueArn:
+    Description: queue to catch results from comprehend analysis
+    Value: !GetAtt DocClassificationOutputQueue.Arn
+    Export:
+      Name: doc-classification-output-queue-arn
   DocAnalysisQueueUrl:
     Description: queue to manage the results of your doc analysis
     Value: !Ref DocAnalysisQueue

@@ -1,4 +1,5 @@
 const { downloadFileAndStoreInTmp } = require('./services/s3_services');
+const untargz = require('./services/untargz_classification');
 
 const CLASSIFICATION_BUCKET  = process.env.CLASSIFICATION_BUCKET;
 
@@ -15,7 +16,9 @@ const checkClassificationOutput = async  (event, context) => {
       const key = eventRecord.s3.object.key;
       const bucket = eventRecord.s3.bucket.name;
       // unzip the file and read the output
-      await downloadFileAndStoreInTmp(bucket, key);
+      const filePath = await downloadFileAndStoreInTmp(bucket, key);
+      const fileContent = await untargz(filePath);
+      console.log(fileContent);
     }
   } catch (error) {
     console.error(error);

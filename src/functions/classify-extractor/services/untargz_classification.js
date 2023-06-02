@@ -11,7 +11,7 @@ const get_targz_outfile_json = async (file_path) => {
     //     filter: file => path.extname(file.path) === '.out',
     //     map: file => JSON.parse(file.data.toString())
     // });
-    const s3_files = decompressTargz()(file_path);
+    const s3_files = await decompressTargz()(file_path);
     const classification_files = s3_files
         .filter(file => path.extname(file.path) === '.out')
         .map(file => JSON.parse(file.data.toString()));

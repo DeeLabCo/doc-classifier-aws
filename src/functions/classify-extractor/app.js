@@ -27,7 +27,8 @@ const checkClassificationOutput = async (event, context) => {
       // console.log('Object downloaded to: ', filePath);
       // const fileContent = await untargz(filePath);
       const fileContent = await untargz(fileStream);
-      console.log(fileContent);
+      const classification = fileContent[0];
+      console.log(classification);
     }
   } catch (error) {
     console.error(error);

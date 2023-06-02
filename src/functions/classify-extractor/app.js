@@ -29,6 +29,7 @@ const checkClassificationOutput = async (event, context) => {
       const fileContent = await untargz(fileStream);
       const classification = fileContent[0];
       console.log(classification);
+      return true;
     }
   } catch (error) {
     console.error(error);

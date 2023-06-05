@@ -5,6 +5,10 @@ Parameters:
     Type: String
     Default: myDynamoDbTableToStoreEmbeddings
     Description: Provide a table name to store file labels
+  DynamoDbResultsTableName:
+    Type: String
+    Default: myDynamoDbTableToStoreClassificationResults
+    Description: Provide a table name to store the comprehend classification results
   BucketRecordsName:
     Type: String
     Default: my-files-bucket
@@ -85,6 +89,23 @@ Resources:
       BillingMode: PAY_PER_REQUEST
       SSESpecification:
         SSEEnabled: true
+  DynamoDbResultsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref DynamoDbResultsTableName
+      AttributeDefinitions:
+        - AttributeName: s3_object_key
+          AttributeType: S
+        - AttributeName: created_at
+          AttributeType: N
+      KeySchema:
+        - AttributeName: s3_object_key
+          KeyType: HASH
+        - AttributeName: created_at
+          KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
+      SSESpecification:
+        SSEEnabled: true
   DocAnalysisRolePolicyDynamoDB:
     Type: AWS::IAM::Policy
     Properties:
@@ -106,6 +127,7 @@ Resources:
                 - - !GetAtt DynamoDbRecordsTable.Arn
                   - "index"
                   - "sync-status-index"
+              - !GetAtt DynamoDbResultsTable.Arn
         Version: "2012-10-17"
       PolicyName: 'doc-analysis-dynamodb-policy'
       Roles:
@@ -596,6 +618,11 @@ Outputs:
     Value: !Ref DynamoDbRecordsTable
     Export:
       Name: doc-analysis-embeddings-table
+  DynamoDbResultsTable:
+    Description: store the classification results
+    Value: !Ref DynamoDbResultsTable
+    Export:
+      Name: doc-classification-results-table
   AmazonTextractDocAnalysisSNSTopic:
     Description: publish the doc analysis
     Value: !Ref AmazonTextractDocAnalysisSNSTopic

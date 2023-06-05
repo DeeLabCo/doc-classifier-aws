@@ -1,6 +1,5 @@
 const path = require('path');
 
-// const decompress = require('decompress');
 const decompressTargz = require('decompress-targz');
 
 const get_targz_outfile_json = async (file_path) => {

@@ -27,7 +27,9 @@ const downloadFileAndStoreInTmp = async (bucketName, objectKey) => {
   const getObjectCommand = new GetObjectCommand(command);
   const fileData = await  client.send(getObjectCommand);
   const bodyStream = fileData.Body;
-  await persistStream(filePath, bodyStream);
+  return bodyStream;
+  // await persistStream(filePath, bodyStream);
+  // return filePath;
 };
 
 module.exports = {

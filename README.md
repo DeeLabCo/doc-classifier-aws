@@ -8,7 +8,7 @@ The project exposes an API to manage documents information and be able to classi
 - 
 To get started, deploy the cloudformation template:
 ```
-  infra.yml
+  aws cloudformation deploy --template-file infra.yaml --stack-name your-stack-name --capabilities CAPABILITY_NAMED_IAM
 ```
 
 The template includes: 

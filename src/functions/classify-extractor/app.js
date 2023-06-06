@@ -2,6 +2,7 @@ const path = require('path');
 
 const { downloadFileAndStoreInTmp } = require('./services/s3_services');
 const untargz = require('./services/untargz_classification');
+const { putClassificationResult } = require('./services/dynamo_services');
 
 const CLASSIFICATION_BUCKET = process.env.CLASSIFICATION_BUCKET;
 
@@ -25,10 +26,25 @@ const checkClassificationOutput = async (event, context) => {
       // unzip the file and read the output
       const fileStream = await downloadFileAndStoreInTmp(bucket, key);
       // console.log('Object downloaded to: ', filePath);
-      // const fileContent = await untargz(filePath);
       const fileContent = await untargz(fileStream);
-      const classification = fileContent[0];
-      console.log(classification);
+      let classification = fileContent[0];
+      classification = classification.filter(page => page.DocumentMetadata != undefined && page.DocumentMetadata.PageNumber == 1);
+      // console.log(classification[0]);
+      let selected_class = classification[0].Classes[0];
+      for (let tem_class of classification[0].Classes) {
+        if (tem_class.Score > selected_class.Score)
+          selected_class = tem_class;
+      }
+      const created_at = new Date().valueOf();
+      const Saving_Info = {
+        s3ObjectKey: key,
+        createdAt: created_at,
+        fileName: classification[0].File,
+        classification: selected_class.Name,
+        score: selected_class.Score,
+      };
+      console.log(Saving_Info);
+      const savingResult = await putClassificationResult(key, created_at, classification[0].File, selected_class.Name, selected_class.Score);
       return true;
     }
   } catch (error) {

@@ -678,6 +678,11 @@ Outputs:
     Value: !Ref DocClassificationBucket
     Export:
       Name: doc-classification-bucket
+  DocClassificationBucketArn:
+    Description: arn bucket to store the files to be classified
+    Value: !GetAtt DocClassificationBucket.Arn
+    Export:
+      Name: doc-classification-bucket-arn
   DocsTrainingBucket:
     Description: bucket to store the csv files
     Value: !Ref  DocsTrainingBucket

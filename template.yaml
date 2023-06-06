@@ -23,7 +23,6 @@ Resources:
           SNS_TOPIC_ARN: !ImportValue doc-analysis-sns-topic
           EXECUTION_ROLE_FOR_TEXTRACT: !ImportValue doc-analysis-role-for-textract
           DYNAMODB_DOCUMENTS_TABLE: !ImportValue doc-analysis-embeddings-table
-          DYNAMODB_RESULTS_TABLE: !ImportValue doc-classification-results-table
           TRAINING_FILES_BUCKET: !ImportValue docs-training-bucket
           CLASSIFICATION_FILES_BUCKET: !ImportValue doc-classification-bucket
       Events:
@@ -103,6 +102,7 @@ Resources:
       Environment:
         Variables:
           OUTPUT_COMPREHEND_BUCKET: !ImportValue 'doc-classification-outputs-bucket'
+          DYNAMODB_RESULTS_TABLE: !ImportValue doc-classification-results-table
       Architectures:
         - x86_64
       Events:

@@ -1,4 +1,4 @@
-# any-doc-classifier  - DeeLab S***
+# any-doc-classifier - TBBC - DeeLab
 
 This project contains source code and supporting files for a serverless application that you can deploy with the AWS Serverless Application Model (AWS SAM) 
 The project exposes an API to manage documents information and be able to classify them with comprehend. It includes the following files and folders:
@@ -22,7 +22,6 @@ The template includes:
 * **DocAnalysisBucket**: All documents you upload go to this bucket (the raw data)
 * **DocsTrainingBucket**: Before you can train a classifier with Comprehend you must generate CSV files with the raw data, these files are stored here. 
 
-
 ## Deploy the sample application
 
 To use the AWS SAM CLI, you need the following tools:
@@ -34,6 +33,10 @@ To use the AWS SAM CLI, you need the following tools:
 To build and deploy the application for the first time reference to the main project: 
 
 If you just want to deploy the APIs and apply new changes to this project, run the following in your shell:
+
+# Initial Architecture 
+
+![plot](./aws_classification_arch.drawio.png)
 
 ```bash
 sam build --use-container 
